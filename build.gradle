@@ -1,0 +1,94 @@
+apply plugin: 'ssh'
+apply plugin: 'war'
+import groovy.json.JsonSlurper
+
+buildscript {
+    repositories {
+    	mavenCentral()
+    }
+
+    dependencies { 
+    	classpath 'org.hidetake:gradle-ssh-plugin:0.1.7'
+    }
+}
+
+war {
+    archiveName = 'reach.war'
+}
+
+ssh {
+    config(StrictHostKeyChecking: 'no')
+}
+
+remotes {
+    testserver {
+        host = '$server'
+        user = 'sshuser'
+        identity = file("${System.properties['user.home']}/.ssh/id_dsa")
+    }
+}
+
+task deployTestServer << {
+    deploy(remotes.testserver)
+}
+
+deployTestServer.dependsOn build
+
+def getWarFromArtifactory(def version) {
+}
+
+def backUpCurrent() {
+
+}
+
+def deploy(def server, def version) {
+    logger.lifecycle("Deploying to $server")
+    logger.lifecycle("Copying ${war.archivePath.absolutePath} to $server ... Be patient .. takes time ...")
+    sshexec {
+        session(server) {
+            put(war.archivePath.absolutePath, war.archiveName)
+        }
+    }
+    sshexecute(server, '/usr/share/tomcat8/bin/tomcat8 stop')
+    sshexecute(server, 'rm -rf /var/lib/tomcat8/webapps/reach*')
+    sshexecute(server, "cp ${war.archiveName}  /var/lib/tomcat8/webapps")
+    sshexecute(server, '/usr/share/tomcat8/bin/tomcat8 start')
+    sshexecute(server, '/usr/share/tomcat8/bin/tomcat8 status')
+}
+
+def sshexecute(def server, def cmd) {
+    logger.lifecycle("Executing '$cmd'  ...")
+    sshexec {
+        session(server) {
+            execute(cmd, pty: true)
+        }
+    }
+}
+
+
+task checkIfServerIsRunning << {
+	def jsonSlurper = new JsonSlurper()
+	def url = "http://$server:8080/reach/health"
+	logger.lifecycle("Contacting: " + url)
+	def content
+	try {
+    	content = new URL(url).getText()
+    	logger.lifecycle("Response: " + content)
+    	def object = jsonSlurper.parseText(content)
+    	if (object.status == "UP") {
+    		logger.lifecycle("Application started succesfully!")
+    		} else {
+    		logger.lifecycle("Unable to contact " + url + "Either check the logs or re-deploy!.")
+	    	}
+    	}
+    catch(e) {
+    	logger.lifecycle("Something went wrong, either check the logs or re-deploy!.")
+    }
+}
+
+task wrapper(type: Wrapper) {
+    description = "Generates a new Gradle Wrapper"
+    group = "Build"
+    gradleVersion = '2.4'
+    distributionUrl = "http://services.gradle.org/distributions/gradle-${gradleVersion}-all.zip"
+}
