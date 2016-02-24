@@ -65,6 +65,46 @@ def sshexecute(def server, def cmd) {
     }
 }
 
+def artifactoryURL = "http://104.130.3.24:8081/artifactory"
+def betaRepository = "beta-repository"
+def releaseRepository = "release-repository"
+//def urlTemplate = artifactoryURL + repository + groupID + artifactID + versionNumber + artifactID + "-" + versionNumber + ".war"
+
+task getFromArtifactory << {
+
+    // Beta    version example : http://104.130.3.24:8081/artifactory/beta-repository/com/agent511/reach/C.5.3-BETA-02-19-16-15-22-04/reach-C.5.3-BETA-02-19-16-15-22-04.war
+    // Release version example : http://104.130.3.24:8081/artifactory/release-repository/com/agent511/reach/C.5.3/reach-C.5.3.war
+    
+	// version comes as property from command line. Example:  ./gradlew getFromArtifactory -Pversion=B.5.3-BETA-02-19-16-15-22-04
+	def warVersion = version 
+	println warVersion
+	
+	// TODO: Validate version. Decide if it's reach or reach-bge to pick server to deploy.
+	
+	if (warVersion.indexOf('C') >= 0) {
+		println "This is a reach version: " + warVersion
+		
+		def repositoryType = repository // repository comes as property from command line.
+		def artifactID = "reach"
+		def groupID = "com/agent511"
+		def urlTemplate = artifactoryURL + "/" + repositoryType + "/" + groupID + "/" + artifactID + "/" + warVersion + "/" + artifactID + "-" + warVersion + ".war"
+		
+		println "Original: " + "http://104.130.3.24:8081/artifactory/beta-repository/com/agent511/reach/C.5.3-BETA-02-19-16-15-22-04/reach-C.5.3-BETA-02-19-16-15-22-04.war"
+		println "Generated: " + urlTemplate
+		
+	} else if ((warVersion.indexOf('B') >= 0)) {
+		println "This is a reach bge version: " + warVersion
+		
+		def repositoryType = repository // repository comes as property from command line.
+		def artifactID = "reach-bge"
+		def groupID = "com/agent511"
+		def urlTemplate = artifactoryURL + "/" + repositoryType + "/" + groupID + "/" + artifactID + "/" + warVersion + "/" + artifactID + "-" + warVersion + ".war"
+		
+		println "Original: " + "http://104.130.3.24:8081/artifactory/beta-repository/com/agent511/reach-bge/B.5.3-BETA-02-19-16-15-22-04/reach-bge-B.5.3-BETA-02-19-16-15-22-04.war"
+		println "Generated: " + urlTemplate
+		
+	}
+}
 
 task checkIfServerIsRunning << {
 	def jsonSlurper = new JsonSlurper()
